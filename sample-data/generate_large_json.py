@@ -6,6 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 OUTPUT = ROOT / "large-placeholder.json"
+MINIFIED_OUTPUT = ROOT / "large-placeholder-minified.json"
 RECORD_COUNT = 250_000
 
 REGIONS = ("us-east", "us-west", "eu-central", "ap-south", "sa-east")
@@ -56,23 +57,35 @@ def build_record(index: int) -> dict[str, object]:
 
 
 def main() -> None:
-    with OUTPUT.open("w", encoding="utf-8") as file:
-        file.write("[\n")
-        for index in range(RECORD_COUNT):
-            suffix = "," if index < RECORD_COUNT - 1 else ""
-            record_json = json.dumps(
-                build_record(index),
-                ensure_ascii=False,
-                indent=4,
-                sort_keys=True,
-            )
-            indented_record_json = "\n".join(
-                f"    {line}" for line in record_json.splitlines()
-            )
-            file.write(f"{indented_record_json}{suffix}\n")
-        file.write("]\n")
+    with OUTPUT.open("w", encoding="utf-8") as pretty_file:
+        with MINIFIED_OUTPUT.open("w", encoding="utf-8") as minified_file:
+            pretty_file.write("[\n")
+            minified_file.write("[")
+            for index in range(RECORD_COUNT):
+                suffix = "," if index < RECORD_COUNT - 1 else ""
+                record = build_record(index)
+                record_json = json.dumps(
+                    record,
+                    ensure_ascii=False,
+                    indent=4,
+                    sort_keys=True,
+                )
+                minified_record_json = json.dumps(
+                    record,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                    sort_keys=True,
+                )
+                indented_record_json = "\n".join(
+                    f"    {line}" for line in record_json.splitlines()
+                )
+                pretty_file.write(f"{indented_record_json}{suffix}\n")
+                minified_file.write(f"{minified_record_json}{suffix}")
+            pretty_file.write("]\n")
+            minified_file.write("]")
 
     print(f"Wrote {OUTPUT}")
+    print(f"Wrote {MINIFIED_OUTPUT}")
 
 
 if __name__ == "__main__":

@@ -80,6 +80,7 @@ test('webview line-count state helpers preserve progress and ready states', () =
     maxAllowablePreviewLines: 10000,
     lineCount: null,
     preview: {
+      mode: 'raw' as const,
       lines: [],
       loadedLineCount: 0,
       displayLimit: 100,

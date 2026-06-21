@@ -33,6 +33,7 @@ export interface JsonPreviewLine {
 }
 
 export interface JsonPreview {
+  readonly mode: 'raw' | 'formatted';
   readonly lines: JsonPreviewLine[];
   readonly loadedLineCount: number;
   readonly displayLimit: number;

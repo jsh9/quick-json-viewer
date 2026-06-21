@@ -16,6 +16,7 @@ lines. Files at or below the threshold open with VS Code's default JSON editor.
 - See useful file context, including file size, exact total line count, and last modified time.
 - Search rendered preview text with VS Code's webview Find widget.
 - Keep large files responsive by streaming only the first configured number of lines without JSON parsing.
+- Automatically format likely minified JSON previews while streaming.
 - Use `Show raw JSON` to disengage the extension and reopen the file with VS Code's default editor.
 
 ## 2. Screenshots
@@ -60,9 +61,13 @@ To raise or disable the safety limit, update VS Code settings JSON:
 ## 5. Truncated Preview
 
 Quick JSON Viewer does not load or parse the whole JSON document. It checks the
-file size, streams only the configured number of physical lines, and renders
-those characters in a readonly webview. If more lines remain, the preview shows
+file size, streams only the configured preview amount, and renders those
+characters in a readonly webview. If more content remains, the preview shows
 `...` on the next line.
+
+For likely minified JSON, the preview is formatted while streaming until the
+configured preview-line count is reached. The exact total line count still
+reflects physical source-file lines.
 
 Syntax highlighting is intentionally lightweight and presentation-only. It
 highlights JSON-looking keys, strings, numbers, booleans, `null`, and

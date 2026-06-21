@@ -658,6 +658,7 @@ test('custom editor tolerates native watcher setup failures and safeLoad errors'
 test('custom editor drops stale preview results and ignores aborted reads', async () => {
   const previewResolvers: Array<
     (preview: {
+      readonly mode: 'raw' | 'formatted';
       readonly lines: unknown[];
       readonly loadedLineCount: number;
       readonly displayLimit: number;
@@ -689,6 +690,7 @@ test('custom editor drops stale preview results and ignores aborted reads', asyn
     staleHarness.fake.fireConfigurationChange(['quickJsonViewer.previewLines']);
     await waitFor(() => previewResolvers.length === 2);
     previewResolvers[0]?.({
+      mode: 'raw',
       lines: [],
       loadedLineCount: 0,
       displayLimit: 100,

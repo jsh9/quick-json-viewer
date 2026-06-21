@@ -84,8 +84,14 @@ export function createRenderer(context: {
 
     const loaded = data.preview.loadedLineCount;
     const lineLabel = loaded === 1 ? 'line' : 'lines';
+    const formattedLabel =
+      data.preview.mode === 'formatted' ? 'formatted ' : '';
     elements.previewStatus.textContent =
-      'Showing first ' + formatInteger(loaded) + ' ' + lineLabel;
+      'Showing first ' +
+      formatInteger(loaded) +
+      ' ' +
+      formattedLabel +
+      lineLabel;
 
     const fragment = document.createDocumentFragment();
     const truncated = data.preview.truncatedLineCount;

@@ -96,6 +96,17 @@ test('webview renders highlighted readonly preview data', () => {
       getRequiredElement(context.window, '.json-token-literal').textContent,
       'true'
     );
+
+    dispatchExtensionMessage(context.window, {
+      type: 'data',
+      payload: createPayload({
+        preview: createPreview({ mode: 'formatted' })
+      })
+    });
+    assert.equal(
+      getRequiredElement(context.window, '#preview-status').textContent,
+      'Showing first 2 formatted lines'
+    );
   } finally {
     context.window.close();
   }
@@ -271,26 +282,34 @@ function createPayload(
     previewLines: 100,
     maxAllowablePreviewLines: 10000,
     lineCount: 2,
-    preview: {
-      lines: [
-        {
-          lineNumber: 1,
-          text: '{"name":"Ada"}',
-          truncated: false,
-          originalLength: 14
-        },
-        {
-          lineNumber: 2,
-          text: '{"active":true}',
-          truncated: false,
-          originalLength: 15
-        }
-      ],
-      loadedLineCount: 2,
-      displayLimit: 100,
-      truncatedLineCount: 0,
-      truncatedByLineLimit: true
-    },
+    preview: createPreview(),
+    ...overrides
+  };
+}
+
+function createPreview(
+  overrides: Record<string, unknown> = {}
+): Record<string, unknown> {
+  return {
+    mode: 'raw',
+    lines: [
+      {
+        lineNumber: 1,
+        text: '{"name":"Ada"}',
+        truncated: false,
+        originalLength: 14
+      },
+      {
+        lineNumber: 2,
+        text: '{"active":true}',
+        truncated: false,
+        originalLength: 15
+      }
+    ],
+    loadedLineCount: 2,
+    displayLimit: 100,
+    truncatedLineCount: 0,
+    truncatedByLineLimit: true,
     ...overrides
   };
 }
