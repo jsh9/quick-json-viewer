@@ -4,6 +4,7 @@ import {
   BYTES_PER_MIB,
   DEFAULT_LARGE_FILE_THRESHOLD_MB,
   DEFAULT_PREVIEW_LINES,
+  MAX_PREVIEW_LINES,
   getThresholdBytes,
   normalizeViewerSettings,
   shouldPreviewFile
@@ -24,11 +25,11 @@ test('settings validation applies defaults and accepts valid values', () => {
   assert.deepEqual(
     normalizeViewerSettings({
       largeFileThresholdMb: 0.5,
-      previewLines: 7
+      previewLines: MAX_PREVIEW_LINES + 1
     }),
     {
       largeFileThresholdMb: 0.5,
-      previewLines: 7
+      previewLines: MAX_PREVIEW_LINES
     }
   );
 });

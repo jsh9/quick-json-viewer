@@ -11,10 +11,11 @@ import {
 test('webview preview-line validation rejects invalid input and de-duplicates submitted values', () => {
   assert.deepEqual(getPreviewLinesSubmission('', ''), {
     kind: 'invalid',
-    message: 'Lines must be a positive whole number.'
+    message: 'Lines must be a whole number between 1 and 10,000.'
   });
   assert.equal(getPreviewLinesSubmission('-1', '').kind, 'invalid');
   assert.equal(getPreviewLinesSubmission('1.5', '').kind, 'invalid');
+  assert.equal(getPreviewLinesSubmission('10001', '').kind, 'invalid');
   assert.deepEqual(getPreviewLinesSubmission('007', ''), {
     kind: 'changed',
     value: 7,
@@ -99,7 +100,7 @@ test('webview numeric submissions use defensive fallback messages', () => {
   try {
     assert.deepEqual(getPreviewLinesSubmission('7', ''), {
       kind: 'invalid',
-      message: 'Lines must be a positive whole number.'
+      message: 'Lines must be a whole number between 1 and 10,000.'
     });
   } finally {
     globalThis.String = originalString;

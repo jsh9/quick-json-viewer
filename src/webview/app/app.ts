@@ -18,13 +18,13 @@ export function createWebviewApp(
 ): void {
   const content = elements.content;
   let data: JsonDataState | null = null;
-  let lastSubmittedPreviewLines = '';
+  let lastConfirmedPreviewLines = '';
 
   const renderer = createRenderer({
     elements,
     setControlsDisabled,
     setLastPreviewLinesValue: (value) => {
-      lastSubmittedPreviewLines = value;
+      lastConfirmedPreviewLines = value;
     },
     clearInputErrors
   });
@@ -130,7 +130,7 @@ export function createWebviewApp(
   function submitPreviewLines(): void {
     const submission = getPreviewLinesSubmission(
       elements.previewLinesInput.value,
-      lastSubmittedPreviewLines
+      lastConfirmedPreviewLines
     );
     if (submission.kind === 'invalid') {
       showPreviewLinesError(submission.message);
@@ -142,7 +142,6 @@ export function createWebviewApp(
     }
 
     clearPreviewLinesError();
-    lastSubmittedPreviewLines = submission.submittedValue;
     vscode.postMessage({
       type: 'updatePreviewLines',
       value: submission.value

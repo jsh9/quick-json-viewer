@@ -41,7 +41,10 @@ test('package contributes JSON viewer as the default editor association', async 
         readonly selector?: Array<{ readonly filenamePattern?: unknown }>;
       }>;
       readonly configuration?: {
-        readonly properties?: Record<string, { readonly default?: unknown }>;
+        readonly properties?: Record<
+          string,
+          { readonly default?: unknown; readonly maximum?: unknown }
+        >;
       };
     };
   };
@@ -93,6 +96,12 @@ test('package contributes JSON viewer as the default editor association', async 
       'quickJsonViewer.previewLines'
     ]?.default,
     100
+  );
+  assert.equal(
+    packageJson.contributes?.configuration?.properties?.[
+      'quickJsonViewer.previewLines'
+    ]?.maximum,
+    10000
   );
 });
 

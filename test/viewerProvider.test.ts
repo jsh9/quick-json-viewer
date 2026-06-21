@@ -319,6 +319,14 @@ test('custom editor validates preview-line setting messages and writes valid upd
       (message) => message.type === 'previewLinesError'
     );
 
+    panel.webview.receive({ type: 'updatePreviewLines', value: 10001 });
+    await waitFor(
+      () =>
+        panel.webview.messages.filter(
+          (message) => getMessageType(message) === 'previewLinesError'
+        ).length === 2
+    );
+
     panel.webview.receive({ type: 'updatePreviewLines', value: 7 });
     await waitFor(() => harness.fake.configurationUpdates.length === 1);
     assert.deepEqual(harness.fake.configurationUpdates, [
@@ -328,6 +336,30 @@ test('custom editor validates preview-line setting messages and writes valid upd
         target: FakeVscode.ConfigurationTarget.Global
       }
     ]);
+  } finally {
+    panel.dispose();
+    harness.restore();
+  }
+});
+
+test('custom editor clamps manually configured preview lines above the maximum', async () => {
+  const harness = loadExtension();
+  const filePath = await writeFixture('clamped-settings.json', '{"a":1}');
+  const panel = new FakeWebviewPanel();
+  try {
+    harness.fake.largeFileThresholdMb = 0;
+    harness.fake.previewLines = 10001;
+    const provider = activateAndGetProvider(harness);
+    const document = await provider.openCustomDocument(FakeUri.file(filePath));
+    await provider.resolveCustomEditor(document, panel, {});
+
+    panel.webview.receive({ type: 'ready' });
+    const data = await waitForMessage<{
+      readonly type?: unknown;
+      readonly payload: { readonly previewLines: number };
+    }>(panel, (message) => message.type === 'data');
+
+    assert.equal(data.payload.previewLines, 10000);
   } finally {
     panel.dispose();
     harness.restore();

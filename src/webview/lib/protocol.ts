@@ -1,7 +1,11 @@
-export type ViewState = 'loading' | 'previewLoading' | 'ready' | 'error';
+import {
+  MAX_PREVIEW_LINES,
+  PREVIEW_LINES_ERROR_MESSAGE
+} from '../../shared/settings';
 
-export const PREVIEW_LINES_ERROR_MESSAGE =
-  'Lines must be a positive whole number.';
+export { MAX_PREVIEW_LINES, PREVIEW_LINES_ERROR_MESSAGE };
+
+export type ViewState = 'loading' | 'previewLoading' | 'ready' | 'error';
 
 export type LineCountState = 'counting' | 'ready' | 'unavailable';
 
@@ -102,7 +106,7 @@ export function getPreviewLinesSubmission(
   }
 
   const value = Number(rawValue);
-  if (!Number.isInteger(value) || value < 1) {
+  if (!Number.isInteger(value) || value < 1 || value > MAX_PREVIEW_LINES) {
     return { kind: 'invalid', message: PREVIEW_LINES_ERROR_MESSAGE };
   }
 

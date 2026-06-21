@@ -12,6 +12,10 @@ import {
   startExactLineCount
 } from './viewerData';
 import { WebviewMessage, formatError, getSettings } from './viewerProtocol';
+import {
+  MAX_PREVIEW_LINES,
+  PREVIEW_LINES_ERROR_MESSAGE
+} from './shared/settings';
 
 export class JsonDocument implements vscode.CustomDocument {
   public constructor(public readonly uri: vscode.Uri) {}
@@ -209,10 +213,10 @@ export class JsonViewerProvider implements vscode.CustomReadonlyEditorProvider<J
     ): Promise<void> => {
       const value =
         typeof message.value === 'number' ? message.value : Number.NaN;
-      if (!Number.isInteger(value) || value < 1) {
+      if (!Number.isInteger(value) || value < 1 || value > MAX_PREVIEW_LINES) {
         await webviewPanel.webview.postMessage({
           type: 'previewLinesError',
-          message: 'Lines must be a positive whole number.'
+          message: PREVIEW_LINES_ERROR_MESSAGE
         });
         return;
       }

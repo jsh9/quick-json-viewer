@@ -39,7 +39,7 @@ preview contents.
 ## 4. Settings
 
 - `quickJsonViewer.largeFileThresholdMb`: open files larger than this many MiB in Quick JSON Viewer. Default is `10`; minimum is `0`.
-- `quickJsonViewer.previewLines`: number of lines to show for large JSON files. Default is `100`; minimum is `1`.
+- `quickJsonViewer.previewLines`: number of lines to show for large JSON files. Default is `100`; range is `1` to `10,000`.
 - The info bar `Show [input] lines` control updates `quickJsonViewer.previewLines` globally when you press Enter or leave the field.
 
 ## 5. Truncated Preview

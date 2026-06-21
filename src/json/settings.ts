@@ -1,6 +1,18 @@
-export const DEFAULT_LARGE_FILE_THRESHOLD_MB = 10;
-export const DEFAULT_PREVIEW_LINES = 100;
-export const BYTES_PER_MIB = 1024 * 1024;
+import {
+  BYTES_PER_MIB,
+  DEFAULT_LARGE_FILE_THRESHOLD_MB,
+  DEFAULT_PREVIEW_LINES,
+  MAX_PREVIEW_LINES,
+  MIN_PREVIEW_LINES
+} from '../shared/settings';
+
+export {
+  BYTES_PER_MIB,
+  DEFAULT_LARGE_FILE_THRESHOLD_MB,
+  DEFAULT_PREVIEW_LINES,
+  MAX_PREVIEW_LINES,
+  MIN_PREVIEW_LINES
+} from '../shared/settings';
 
 export interface ViewerSettings {
   readonly largeFileThresholdMb: number;
@@ -17,7 +29,12 @@ export function normalizeViewerSettings(input: {
       DEFAULT_LARGE_FILE_THRESHOLD_MB,
       0
     ),
-    previewLines: normalizeInteger(input.previewLines, DEFAULT_PREVIEW_LINES, 1)
+    previewLines: normalizeInteger(
+      input.previewLines,
+      DEFAULT_PREVIEW_LINES,
+      MIN_PREVIEW_LINES,
+      MAX_PREVIEW_LINES
+    )
   };
 }
 
@@ -35,7 +52,8 @@ export function shouldPreviewFile(
 function normalizeInteger(
   value: unknown,
   fallback: number,
-  minimum: number
+  minimum: number,
+  maximum: number
 ): number {
   if (
     typeof value !== 'number' ||
@@ -45,7 +63,7 @@ function normalizeInteger(
     return fallback;
   }
 
-  return value;
+  return Math.min(value, maximum);
 }
 
 function normalizeNumber(

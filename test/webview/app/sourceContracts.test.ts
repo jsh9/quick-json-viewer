@@ -1,119 +1,307 @@
 import * as assert from 'node:assert/strict';
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import { test } from 'node:test';
+import { getHtml } from '../../../src/webview/html';
 
-const SOURCE_FILES = [
-  'src/extension.ts',
-  'src/viewerProvider.ts',
-  'src/webview/html.ts',
-  'src/webview/styles.ts',
-  'src/webview/script.ts',
-  'src/webview/app/main.ts',
-  'src/webview/app/app.ts',
-  'src/webview/app/dom.ts',
-  'src/webview/app/render.ts',
-  'src/webview/lib/highlight.ts',
-  'src/webview/lib/protocol.ts',
-  'out/webview/main.js'
-];
-
-async function readExtensionSource(): Promise<string> {
-  const sources = await Promise.all(
-    SOURCE_FILES.map((sourceFile) =>
-      fs.readFile(path.join(process.cwd(), sourceFile), 'utf8')
-    )
-  );
-
-  return sources.join('\n');
+interface TestWindow {
+  readonly document: {
+    querySelector(selector: string): TestElement | null;
+  };
+  readonly MessageEvent: new (
+    type: string,
+    init?: { readonly data?: unknown }
+  ) => unknown;
+  readonly KeyboardEvent: new (
+    type: string,
+    init?: {
+      readonly key?: string;
+      readonly bubbles?: boolean;
+      readonly cancelable?: boolean;
+    }
+  ) => unknown;
+  dispatchEvent(event: unknown): boolean;
+  close(): void;
 }
 
-test('custom editor enables the VS Code find widget for webview search', async () => {
-  const source = await readExtensionSource();
+interface TestElement {
+  textContent: string | null;
+  value?: string;
+  disabled?: boolean;
+  click(): void;
+  dispatchEvent(event: unknown): boolean;
+  getAttribute(name: string): string | null;
+}
 
-  assert.match(
-    source,
-    /webviewOptions: \{[\s\S]*?enableFindWidget: true,[\s\S]*?retainContextWhenHidden: true/
-  );
-  assert.match(source, /<main id="content" tabindex="-1">/);
-  assert.match(source, /content\.focus\(\{ preventScroll: true \}\);/);
+interface TestDom {
+  readonly window: TestWindow;
+}
+
+const { JSDOM } = require('jsdom') as {
+  readonly JSDOM: new (
+    html: string,
+    options: {
+      readonly runScripts: 'dangerously';
+      readonly pretendToBeVisual: boolean;
+      readonly beforeParse: (window: TestWindow) => void;
+    }
+  ) => TestDom;
+};
+
+test('webview posts ready when the bundled app starts', () => {
+  const context = createWebviewDom();
+  try {
+    assert.deepEqual(context.postedMessages, [{ type: 'ready' }]);
+    assert.equal(
+      getRequiredElement(context.window, '#content .status').textContent,
+      'Loading JSON preview...'
+    );
+  } finally {
+    context.window.close();
+  }
 });
 
-test('webview renders highlighted readonly text without JSON parsing', async () => {
-  const source = await readExtensionSource();
+test('webview renders highlighted readonly preview data', () => {
+  const context = createWebviewDom();
+  try {
+    dispatchExtensionMessage(context.window, {
+      type: 'data',
+      payload: createPayload()
+    });
 
-  assert.doesNotMatch(source, /textarea|contenteditable|raw-contents/);
-  assert.doesNotMatch(source, /rawContents/);
-  assert.doesNotMatch(source, /JSON\.parse/);
-  assert.match(source, /const pre = document\.createElement\('pre'\);/);
-  assert.match(source, /function highlightJsonLine\(line: string\)/);
-  assert.match(
-    source,
-    /span\.className = `json-token json-token-\$\{token\.kind\}`;/
-  );
-  assert.match(source, /span\.textContent = token\.text;/);
-  assert.match(source, /document\.createTextNode\(token\.text\)/);
-  assert.match(source, /\.json-token-key/);
-  assert.match(source, /--quick-json-key: #9cdcfe;/);
-  assert.match(source, /body\.vscode-dark/);
-  assert.match(source, /color: var\(--quick-json-key\);/);
-  assert.match(source, /font-weight: 600;/);
-  assert.match(source, /\.json-token-string/);
-  assert.match(source, /\.json-token-number/);
-  assert.match(source, /\.json-token-literal/);
-  assert.match(source, /\.json-token-punctuation/);
-  assert.match(
-    source,
-    /appendHighlightedPreview\([\s\S]*?data\.preview\.lines\.map\(\(line\) => line\.text\),[\s\S]*?data\.preview\.truncatedByLineLimit[\s\S]*?\);/
-  );
-  assert.match(source, /pre\.append\(document\.createTextNode\('\.\.\.'\)\);/);
+    assert.equal(context.window.document.querySelector('textarea'), null);
+    assert.equal(
+      context.window.document.querySelector('[contenteditable]'),
+      null
+    );
+    assert.equal(
+      getRequiredElement(context.window, '#file-size').textContent,
+      '12.0 MB'
+    );
+    assert.equal(
+      getRequiredElement(context.window, '#preview-lines-input').value,
+      '100'
+    );
+    assert.equal(
+      getRequiredElement(context.window, '#preview-status').textContent,
+      'Showing first 2 lines'
+    );
+    assert.equal(
+      getRequiredElement(context.window, 'pre.preview-text').textContent,
+      '{"name":"Ada"}\n{"active":true}\n...'
+    );
+    assert.equal(
+      getRequiredElement(context.window, '.json-token-key').textContent,
+      '"name"'
+    );
+    assert.equal(
+      getRequiredElement(context.window, '.json-token-literal').textContent,
+      'true'
+    );
+  } finally {
+    context.window.close();
+  }
 });
 
-test('webview top bar exposes size, preview-line, modified, and status controls', async () => {
-  const source = await readExtensionSource();
+test('webview renders line-count progress, final count, and unavailable states', () => {
+  const context = createWebviewDom();
+  try {
+    dispatchExtensionMessage(context.window, {
+      type: 'data',
+      payload: createPayload({ lineCount: null })
+    });
 
-  assert.match(source, /<strong>Size:<\/strong>/);
-  assert.match(source, /<strong>Total lines:<\/strong>/);
-  assert.match(source, /id="line-count">Counting\.\.\.<\/span>/);
-  assert.doesNotMatch(source, /id="threshold-input"|Threshold<\/strong>/);
-  assert.match(source, /<strong>Show<\/strong>[\s\S]*<span>lines<\/span>/);
-  assert.match(source, /<strong>Modified:<\/strong>/);
-  assert.match(source, /id="preview-status" class="info-item"/);
-  assert.match(
-    source,
-    /\.info-item:not\(:first-child\)::before[\s\S]*content: "\|";/
-  );
-  assert.match(source, /elements\.fileSize\.textContent = payload\.fileSize;/);
-  assert.doesNotMatch(source, /payload\.fileSize \+ ' \('/);
+    dispatchExtensionMessage(context.window, {
+      type: 'lineCountProgress',
+      payload: { percent: 25, lineCount: 10 }
+    });
+    assert.equal(
+      getRequiredElement(context.window, '#line-count').textContent,
+      'Counting 25.0%'
+    );
+
+    dispatchExtensionMessage(context.window, {
+      type: 'lineCount',
+      lineCount: 12
+    });
+    assert.equal(
+      getRequiredElement(context.window, '#line-count').textContent,
+      '12'
+    );
+
+    dispatchExtensionMessage(context.window, { type: 'lineCountError' });
+    assert.equal(
+      getRequiredElement(context.window, '#line-count').textContent,
+      'Unavailable'
+    );
+  } finally {
+    context.window.close();
+  }
 });
 
-test('webview renders line-count progress, final count, and unavailable states', async () => {
-  const source = await readExtensionSource();
+test('webview posts showRawJson and toggles the selected view button', () => {
+  const context = createWebviewDom();
+  try {
+    dispatchExtensionMessage(context.window, {
+      type: 'data',
+      payload: createPayload()
+    });
 
-  assert.match(source, /message\.type === 'lineCount'/);
-  assert.match(source, /message\.type === 'lineCountProgress'/);
-  assert.match(source, /message\.type === 'lineCountError'/);
-  assert.match(source, /function setLineCountText\(/);
-  assert.match(source, /elements\.lineCount\.textContent = 'Unavailable';/);
-  assert.match(
-    source,
-    /elements\.lineCount\.textContent = formatInteger\(value\);/
-  );
-  assert.match(source, /'Counting ' \+ formatPercent\(progress\.percent\)/);
+    getRequiredElement(context.window, '#show-raw-json').click();
+
+    assert.deepEqual(context.postedMessages.at(-1), { type: 'showRawJson' });
+    assert.equal(
+      getRequiredElement(context.window, '#show-raw-json').getAttribute(
+        'aria-pressed'
+      ),
+      'true'
+    );
+    assert.equal(
+      getRequiredElement(context.window, '#truncated-view').getAttribute(
+        'aria-pressed'
+      ),
+      'false'
+    );
+  } finally {
+    context.window.close();
+  }
 });
 
-test('webview exposes Truncated and Show raw JSON view buttons', async () => {
-  const source = await readExtensionSource();
+test('webview validates preview-line input and retries failed updates', () => {
+  const context = createWebviewDom();
+  try {
+    dispatchExtensionMessage(context.window, {
+      type: 'data',
+      payload: createPayload()
+    });
+    const input = getRequiredElement(context.window, '#preview-lines-input');
 
-  assert.match(source, /id="truncated-view"[\s\S]*>Truncated<\/button>/);
-  assert.match(source, /id="show-raw-json"[\s\S]*>Show raw JSON<\/button>/);
-  assert.match(source, /vscode\.postMessage\(\{ type: 'showRawJson' \}\);/);
-  assert.match(
-    source,
-    /elements\.truncatedButton\.setAttribute\('aria-pressed', 'true'\);/
-  );
-  assert.match(
-    source,
-    /elements\.showRawButton\.setAttribute\('aria-pressed', 'false'\);/
-  );
+    input.value = '10001';
+    pressEnter(context.window, input);
+    assert.equal(postedUpdateMessages(context.postedMessages).length, 0);
+    assert.equal(
+      getRequiredElement(context.window, '#preview-lines-error').textContent,
+      'Lines must be a whole number between 1 and 10,000.'
+    );
+
+    input.value = '7';
+    pressEnter(context.window, input);
+    assert.deepEqual(postedUpdateMessages(context.postedMessages), [
+      { type: 'updatePreviewLines', value: 7 }
+    ]);
+
+    dispatchExtensionMessage(context.window, {
+      type: 'previewLinesError',
+      message: 'settings failed'
+    });
+    pressEnter(context.window, input);
+    assert.deepEqual(postedUpdateMessages(context.postedMessages), [
+      { type: 'updatePreviewLines', value: 7 },
+      { type: 'updatePreviewLines', value: 7 }
+    ]);
+  } finally {
+    context.window.close();
+  }
 });
+
+function createWebviewDom(): {
+  readonly window: TestWindow;
+  readonly postedMessages: unknown[];
+} {
+  const postedMessages: unknown[] = [];
+  const dom = new JSDOM(getHtml('large.json'), {
+    runScripts: 'dangerously',
+    pretendToBeVisual: true,
+    beforeParse(window: TestWindow): void {
+      Object.assign(window, {
+        acquireVsCodeApi: () => ({
+          postMessage: (message: unknown): void => {
+            postedMessages.push(toPlainMessage(message));
+          }
+        })
+      });
+    }
+  });
+
+  return {
+    window: dom.window,
+    postedMessages
+  };
+}
+
+function toPlainMessage(message: unknown): unknown {
+  return typeof message === 'object' && message !== null
+    ? JSON.parse(JSON.stringify(message))
+    : message;
+}
+
+function createPayload(
+  overrides: Record<string, unknown> = {}
+): Record<string, unknown> {
+  return {
+    fileName: 'large.json',
+    fileSize: '12.0 MB',
+    fileSizeBytes: 12_000_000,
+    lastModified: 'today',
+    largeFileThresholdMb: 10,
+    thresholdBytes: 10_485_760,
+    previewLines: 100,
+    lineCount: 2,
+    preview: {
+      lines: [
+        {
+          lineNumber: 1,
+          text: '{"name":"Ada"}',
+          truncated: false,
+          originalLength: 14
+        },
+        {
+          lineNumber: 2,
+          text: '{"active":true}',
+          truncated: false,
+          originalLength: 15
+        }
+      ],
+      loadedLineCount: 2,
+      displayLimit: 100,
+      truncatedLineCount: 0,
+      truncatedByLineLimit: true
+    },
+    ...overrides
+  };
+}
+
+function dispatchExtensionMessage(window: TestWindow, data: unknown): void {
+  window.dispatchEvent(new window.MessageEvent('message', { data }));
+}
+
+function pressEnter(window: TestWindow, element: TestElement): void {
+  element.dispatchEvent(
+    new window.KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      cancelable: true
+    })
+  );
+}
+
+function getRequiredElement(window: TestWindow, selector: string): TestElement {
+  const element = window.document.querySelector(selector);
+  assert.ok(element, `Missing element: ${selector}`);
+  return element;
+}
+
+function postedUpdateMessages(
+  messages: readonly unknown[]
+): Array<{ readonly type: 'updatePreviewLines'; readonly value: number }> {
+  return messages.filter(
+    (
+      message
+    ): message is {
+      readonly type: 'updatePreviewLines';
+      readonly value: number;
+    } =>
+      typeof message === 'object' &&
+      message !== null &&
+      'type' in message &&
+      message.type === 'updatePreviewLines'
+  );
+}
