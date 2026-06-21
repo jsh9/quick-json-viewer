@@ -1,40 +1,55 @@
 import {
   BYTES_PER_MIB,
+  DEFAULT_MAX_ALLOWABLE_PREVIEW_LINES,
   DEFAULT_LARGE_FILE_THRESHOLD_MB,
   DEFAULT_PREVIEW_LINES,
-  MAX_PREVIEW_LINES,
-  MIN_PREVIEW_LINES
+  MIN_PREVIEW_LINES,
+  NO_PREVIEW_LINES_LIMIT,
+  isPreviewLinesWithinLimit
 } from '../shared/settings';
 
 export {
   BYTES_PER_MIB,
+  DEFAULT_MAX_ALLOWABLE_PREVIEW_LINES,
   DEFAULT_LARGE_FILE_THRESHOLD_MB,
   DEFAULT_PREVIEW_LINES,
-  MAX_PREVIEW_LINES,
-  MIN_PREVIEW_LINES
+  MIN_PREVIEW_LINES,
+  NO_PREVIEW_LINES_LIMIT
 } from '../shared/settings';
 
 export interface ViewerSettings {
   readonly largeFileThresholdMb: number;
   readonly previewLines: number;
+  readonly maxAllowablePreviewLines: number;
 }
 
 export function normalizeViewerSettings(input: {
   readonly largeFileThresholdMb?: unknown;
   readonly previewLines?: unknown;
+  readonly maxAllowablePreviewLines?: unknown;
 }): ViewerSettings {
+  const maxAllowablePreviewLines = normalizeMaxAllowablePreviewLines(
+    input.maxAllowablePreviewLines
+  );
+  const previewLines = normalizeInteger(
+    input.previewLines,
+    DEFAULT_PREVIEW_LINES,
+    MIN_PREVIEW_LINES
+  );
+
   return {
     largeFileThresholdMb: normalizeNumber(
       input.largeFileThresholdMb,
       DEFAULT_LARGE_FILE_THRESHOLD_MB,
       0
     ),
-    previewLines: normalizeInteger(
-      input.previewLines,
-      DEFAULT_PREVIEW_LINES,
-      MIN_PREVIEW_LINES,
-      MAX_PREVIEW_LINES
+    previewLines: isPreviewLinesWithinLimit(
+      previewLines,
+      maxAllowablePreviewLines
     )
+      ? previewLines
+      : maxAllowablePreviewLines,
+    maxAllowablePreviewLines
   };
 }
 
@@ -52,8 +67,7 @@ export function shouldPreviewFile(
 function normalizeInteger(
   value: unknown,
   fallback: number,
-  minimum: number,
-  maximum: number
+  minimum: number
 ): number {
   if (
     typeof value !== 'number' ||
@@ -63,7 +77,19 @@ function normalizeInteger(
     return fallback;
   }
 
-  return Math.min(value, maximum);
+  return value;
+}
+
+function normalizeMaxAllowablePreviewLines(value: unknown): number {
+  if (value === NO_PREVIEW_LINES_LIMIT) {
+    return NO_PREVIEW_LINES_LIMIT;
+  }
+
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
+    return DEFAULT_MAX_ALLOWABLE_PREVIEW_LINES;
+  }
+
+  return value;
 }
 
 function normalizeNumber(

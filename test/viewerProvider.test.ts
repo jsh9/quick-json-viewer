@@ -327,15 +327,31 @@ test('custom editor validates preview-line setting messages and writes valid upd
         ).length === 2
     );
 
-    panel.webview.receive({ type: 'updatePreviewLines', value: 7 });
+    harness.fake.maxAllowablePreviewLines = 20000;
+    panel.webview.receive({ type: 'updatePreviewLines', value: 10001 });
     await waitFor(() => harness.fake.configurationUpdates.length === 1);
-    assert.deepEqual(harness.fake.configurationUpdates, [
-      {
-        key: 'previewLines',
-        value: 7,
-        target: FakeVscode.ConfigurationTarget.Global
-      }
-    ]);
+    assert.deepEqual(harness.fake.configurationUpdates[0], {
+      key: 'previewLines',
+      value: 10001,
+      target: FakeVscode.ConfigurationTarget.Global
+    });
+
+    harness.fake.maxAllowablePreviewLines = -1;
+    panel.webview.receive({ type: 'updatePreviewLines', value: 25000 });
+    await waitFor(() => harness.fake.configurationUpdates.length === 2);
+    assert.deepEqual(harness.fake.configurationUpdates[1], {
+      key: 'previewLines',
+      value: 25000,
+      target: FakeVscode.ConfigurationTarget.Global
+    });
+
+    panel.webview.receive({ type: 'updatePreviewLines', value: 7 });
+    await waitFor(() => harness.fake.configurationUpdates.length === 3);
+    assert.deepEqual(harness.fake.configurationUpdates[2], {
+      key: 'previewLines',
+      value: 7,
+      target: FakeVscode.ConfigurationTarget.Global
+    });
   } finally {
     panel.dispose();
     harness.restore();
@@ -356,10 +372,61 @@ test('custom editor clamps manually configured preview lines above the maximum',
     panel.webview.receive({ type: 'ready' });
     const data = await waitForMessage<{
       readonly type?: unknown;
-      readonly payload: { readonly previewLines: number };
+      readonly payload: {
+        readonly previewLines: number;
+        readonly maxAllowablePreviewLines: number;
+      };
     }>(panel, (message) => message.type === 'data');
 
     assert.equal(data.payload.previewLines, 10000);
+    assert.equal(data.payload.maxAllowablePreviewLines, 10000);
+  } finally {
+    panel.dispose();
+    harness.restore();
+  }
+});
+
+test('custom editor keeps manual preview lines when the safety limit is raised or disabled', async () => {
+  const harness = loadExtension();
+  const filePath = await writeFixture(
+    'relaxed-settings.json',
+    '{"a":1}\n{"b":2}'
+  );
+  const panel = new FakeWebviewPanel();
+  try {
+    harness.fake.largeFileThresholdMb = 0;
+    harness.fake.previewLines = 20000;
+    harness.fake.maxAllowablePreviewLines = 50000;
+    const provider = activateAndGetProvider(harness);
+    const document = await provider.openCustomDocument(FakeUri.file(filePath));
+    await provider.resolveCustomEditor(document, panel, {});
+
+    panel.webview.receive({ type: 'ready' });
+    const raisedCapData = await waitForMessage<{
+      readonly type?: unknown;
+      readonly payload: {
+        readonly previewLines: number;
+        readonly maxAllowablePreviewLines: number;
+      };
+    }>(panel, (message) => message.type === 'data');
+    assert.equal(raisedCapData.payload.previewLines, 20000);
+    assert.equal(raisedCapData.payload.maxAllowablePreviewLines, 50000);
+
+    panel.webview.messages.length = 0;
+    harness.fake.previewLines = 30000;
+    harness.fake.maxAllowablePreviewLines = -1;
+    harness.fake.fireConfigurationChange([
+      'quickJsonViewer.maxAllowablePreviewLines'
+    ]);
+    const unlimitedData = await waitForMessage<{
+      readonly type?: unknown;
+      readonly payload: {
+        readonly previewLines: number;
+        readonly maxAllowablePreviewLines: number;
+      };
+    }>(panel, (message) => message.type === 'data');
+    assert.equal(unlimitedData.payload.previewLines, 30000);
+    assert.equal(unlimitedData.payload.maxAllowablePreviewLines, -1);
   } finally {
     panel.dispose();
     harness.restore();

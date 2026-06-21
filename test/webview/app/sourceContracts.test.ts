@@ -179,7 +179,7 @@ test('webview validates preview-line input and retries failed updates', () => {
     assert.equal(postedUpdateMessages(context.postedMessages).length, 0);
     assert.equal(
       getRequiredElement(context.window, '#preview-lines-error').textContent,
-      'Lines must be a whole number between 1 and 10,000.'
+      'Preview line count must be an integer between 1 and 10,000. To raise this limit, set "quickJsonViewer.maxAllowablePreviewLines" in VS Code User Settings (JSON). Set to "-1" to indicate no limit.'
     );
 
     input.value = '7';
@@ -196,6 +196,31 @@ test('webview validates preview-line input and retries failed updates', () => {
     assert.deepEqual(postedUpdateMessages(context.postedMessages), [
       { type: 'updatePreviewLines', value: 7 },
       { type: 'updatePreviewLines', value: 7 }
+    ]);
+
+    dispatchExtensionMessage(context.window, {
+      type: 'data',
+      payload: createPayload({ maxAllowablePreviewLines: 20000 })
+    });
+    input.value = '10001';
+    pressEnter(context.window, input);
+    assert.deepEqual(postedUpdateMessages(context.postedMessages), [
+      { type: 'updatePreviewLines', value: 7 },
+      { type: 'updatePreviewLines', value: 7 },
+      { type: 'updatePreviewLines', value: 10001 }
+    ]);
+
+    dispatchExtensionMessage(context.window, {
+      type: 'data',
+      payload: createPayload({ maxAllowablePreviewLines: -1 })
+    });
+    input.value = '25000';
+    pressEnter(context.window, input);
+    assert.deepEqual(postedUpdateMessages(context.postedMessages), [
+      { type: 'updatePreviewLines', value: 7 },
+      { type: 'updatePreviewLines', value: 7 },
+      { type: 'updatePreviewLines', value: 10001 },
+      { type: 'updatePreviewLines', value: 25000 }
     ]);
   } finally {
     context.window.close();
@@ -244,6 +269,7 @@ function createPayload(
     largeFileThresholdMb: 10,
     thresholdBytes: 10_485_760,
     previewLines: 100,
+    maxAllowablePreviewLines: 10000,
     lineCount: 2,
     preview: {
       lines: [

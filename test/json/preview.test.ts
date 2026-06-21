@@ -1,5 +1,6 @@
 import * as assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { DEFAULT_MAX_ALLOWABLE_PREVIEW_LINES } from '../../src/json/settings';
 import { readJsonPreview } from '../../src/json/preview';
 import { writeJsonFixture } from '../support/jsonFixtures';
 
@@ -11,7 +12,8 @@ test('preview reads only the requested first lines', async () => {
 
   const preview = await readJsonPreview(filePath, {
     largeFileThresholdMb: 0,
-    previewLines: 3
+    previewLines: 3,
+    maxAllowablePreviewLines: DEFAULT_MAX_ALLOWABLE_PREVIEW_LINES
   });
 
   assert.equal(preview.loadedLineCount, 3);
@@ -28,7 +30,8 @@ test('preview handles CRLF, empty files, and final lines without newlines', asyn
   const crlfPath = await writeJsonFixture('crlf.json', '{"a":1}\r\n{"b":2}');
   const crlf = await readJsonPreview(crlfPath, {
     largeFileThresholdMb: 0,
-    previewLines: 5
+    previewLines: 5,
+    maxAllowablePreviewLines: DEFAULT_MAX_ALLOWABLE_PREVIEW_LINES
   });
   assert.deepEqual(
     crlf.lines.map((line) => line.text),
@@ -39,7 +42,8 @@ test('preview handles CRLF, empty files, and final lines without newlines', asyn
   const emptyPath = await writeJsonFixture('empty.json', '');
   const empty = await readJsonPreview(emptyPath, {
     largeFileThresholdMb: 0,
-    previewLines: 5
+    previewLines: 5,
+    maxAllowablePreviewLines: DEFAULT_MAX_ALLOWABLE_PREVIEW_LINES
   });
   assert.equal(empty.loadedLineCount, 0);
   assert.equal(empty.truncatedByLineLimit, false);
@@ -55,7 +59,8 @@ test('preview truncates rendered long lines while preserving original length', a
     filePath,
     {
       largeFileThresholdMb: 0,
-      previewLines: 1
+      previewLines: 1,
+      maxAllowablePreviewLines: DEFAULT_MAX_ALLOWABLE_PREVIEW_LINES
     },
     { maxRenderedLineCharacters: 6 }
   );
@@ -77,7 +82,8 @@ test('preview can be cancelled before file work starts', async () => {
       filePath,
       {
         largeFileThresholdMb: 0,
-        previewLines: 1
+        previewLines: 1,
+        maxAllowablePreviewLines: DEFAULT_MAX_ALLOWABLE_PREVIEW_LINES
       },
       { signal: controller.signal }
     ),

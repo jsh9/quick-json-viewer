@@ -163,6 +163,7 @@ export class FakeVscode {
   public activeTabInput: unknown;
   public largeFileThresholdMb = 10;
   public previewLines = 100;
+  public maxAllowablePreviewLines = 10000;
   public executeCommandError: unknown;
   public configurationUpdateError: unknown;
 
@@ -200,6 +201,10 @@ export class FakeVscode {
               return this.previewLines;
             }
 
+            if (key === 'maxAllowablePreviewLines') {
+              return this.maxAllowablePreviewLines;
+            }
+
             return undefined;
           },
           update: async (
@@ -217,6 +222,12 @@ export class FakeVscode {
             }
             if (key === 'previewLines' && typeof value === 'number') {
               this.previewLines = value;
+            }
+            if (
+              key === 'maxAllowablePreviewLines' &&
+              typeof value === 'number'
+            ) {
+              this.maxAllowablePreviewLines = value;
             }
           }
         };

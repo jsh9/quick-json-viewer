@@ -6,7 +6,8 @@ export function getSettings(): ViewerSettings {
   const configuration = vscode.workspace.getConfiguration(SETTINGS_SECTION);
   return normalizeViewerSettings({
     largeFileThresholdMb: configuration.get('largeFileThresholdMb'),
-    previewLines: configuration.get('previewLines')
+    previewLines: configuration.get('previewLines'),
+    maxAllowablePreviewLines: configuration.get('maxAllowablePreviewLines')
   });
 }
 

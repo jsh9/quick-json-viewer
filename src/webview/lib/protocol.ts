@@ -1,9 +1,15 @@
 import {
-  MAX_PREVIEW_LINES,
-  PREVIEW_LINES_ERROR_MESSAGE
+  DEFAULT_MAX_ALLOWABLE_PREVIEW_LINES,
+  PREVIEW_LINES_ERROR_MESSAGE,
+  getPreviewLinesErrorMessage,
+  isPreviewLinesWithinLimit
 } from '../../shared/settings';
 
-export { MAX_PREVIEW_LINES, PREVIEW_LINES_ERROR_MESSAGE };
+export {
+  DEFAULT_MAX_ALLOWABLE_PREVIEW_LINES,
+  PREVIEW_LINES_ERROR_MESSAGE,
+  getPreviewLinesErrorMessage
+};
 
 export type ViewState = 'loading' | 'previewLoading' | 'ready' | 'error';
 
@@ -42,6 +48,7 @@ export interface JsonDataState {
   readonly largeFileThresholdMb: number;
   readonly thresholdBytes: number;
   readonly previewLines: number;
+  readonly maxAllowablePreviewLines: number;
   lineCount: number | null;
   lineCountState: LineCountState;
   lineCountProgress: NormalizedLineCountProgress | null;
@@ -98,21 +105,35 @@ export type NumericSubmission =
 
 export function getPreviewLinesSubmission(
   rawInput: string,
-  lastSubmittedValue: string
+  lastSubmittedValue: string,
+  maxAllowablePreviewLines: number
 ): NumericSubmission {
   const rawValue = rawInput.trim();
   if (rawValue === '') {
-    return { kind: 'invalid', message: PREVIEW_LINES_ERROR_MESSAGE };
+    return {
+      kind: 'invalid',
+      message: getPreviewLinesErrorMessage(maxAllowablePreviewLines)
+    };
   }
 
   const value = Number(rawValue);
-  if (!Number.isInteger(value) || value < 1 || value > MAX_PREVIEW_LINES) {
-    return { kind: 'invalid', message: PREVIEW_LINES_ERROR_MESSAGE };
+  if (
+    !Number.isInteger(value) ||
+    value < 1 ||
+    !isPreviewLinesWithinLimit(value, maxAllowablePreviewLines)
+  ) {
+    return {
+      kind: 'invalid',
+      message: getPreviewLinesErrorMessage(maxAllowablePreviewLines)
+    };
   }
 
   const submittedValue = String(value);
   if (typeof submittedValue !== 'string') {
-    return { kind: 'invalid', message: PREVIEW_LINES_ERROR_MESSAGE };
+    return {
+      kind: 'invalid',
+      message: getPreviewLinesErrorMessage(maxAllowablePreviewLines)
+    };
   }
 
   return submittedValue === lastSubmittedValue

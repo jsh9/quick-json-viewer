@@ -22,6 +22,7 @@ export interface JsonDataPayload {
   readonly largeFileThresholdMb: number;
   readonly thresholdBytes: number;
   readonly previewLines: number;
+  readonly maxAllowablePreviewLines: number;
   readonly lineCount: number | null;
   readonly preview: JsonPreview;
 }
@@ -92,6 +93,7 @@ export async function postJsonData(
       largeFileThresholdMb: settings.largeFileThresholdMb,
       thresholdBytes: getThresholdBytes(settings.largeFileThresholdMb),
       previewLines: settings.previewLines,
+      maxAllowablePreviewLines: settings.maxAllowablePreviewLines,
       lineCount: exactLineCounts.getCachedLineCount(snapshot) ?? null
     };
 

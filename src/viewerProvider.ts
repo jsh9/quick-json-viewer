@@ -13,8 +13,8 @@ import {
 } from './viewerData';
 import { WebviewMessage, formatError, getSettings } from './viewerProtocol';
 import {
-  MAX_PREVIEW_LINES,
-  PREVIEW_LINES_ERROR_MESSAGE
+  getPreviewLinesErrorMessage,
+  isPreviewLinesWithinLimit
 } from './shared/settings';
 
 export class JsonDocument implements vscode.CustomDocument {
@@ -213,10 +213,17 @@ export class JsonViewerProvider implements vscode.CustomReadonlyEditorProvider<J
     ): Promise<void> => {
       const value =
         typeof message.value === 'number' ? message.value : Number.NaN;
-      if (!Number.isInteger(value) || value < 1 || value > MAX_PREVIEW_LINES) {
+      const settings = getSettings();
+      if (
+        !Number.isInteger(value) ||
+        value < 1 ||
+        !isPreviewLinesWithinLimit(value, settings.maxAllowablePreviewLines)
+      ) {
         await webviewPanel.webview.postMessage({
           type: 'previewLinesError',
-          message: PREVIEW_LINES_ERROR_MESSAGE
+          message: getPreviewLinesErrorMessage(
+            settings.maxAllowablePreviewLines
+          )
         });
         return;
       }
@@ -261,7 +268,10 @@ export class JsonViewerProvider implements vscode.CustomReadonlyEditorProvider<J
           event.affectsConfiguration(
             `${SETTINGS_SECTION}.largeFileThresholdMb`
           ) ||
-          event.affectsConfiguration(`${SETTINGS_SECTION}.previewLines`)
+          event.affectsConfiguration(`${SETTINGS_SECTION}.previewLines`) ||
+          event.affectsConfiguration(
+            `${SETTINGS_SECTION}.maxAllowablePreviewLines`
+          )
         ) {
           safeLoad();
         }

@@ -4,10 +4,11 @@ import {
 } from './dom';
 import { createRenderer, type VscodeApi } from './render';
 import {
-  PREVIEW_LINES_ERROR_MESSAGE,
+  DEFAULT_MAX_ALLOWABLE_PREVIEW_LINES,
   type ExtensionMessage,
   type JsonDataState,
   getPreviewLinesSubmission,
+  getPreviewLinesErrorMessage,
   normalizeLineCountProgress,
   withLineCountState
 } from '../lib/protocol';
@@ -19,6 +20,7 @@ export function createWebviewApp(
   const content = elements.content;
   let data: JsonDataState | null = null;
   let lastConfirmedPreviewLines = '';
+  let maxAllowablePreviewLines = DEFAULT_MAX_ALLOWABLE_PREVIEW_LINES;
 
   const renderer = createRenderer({
     elements,
@@ -70,12 +72,14 @@ export function createWebviewApp(
 
       if (message.type === 'previewLoadStart') {
         data = null;
+        maxAllowablePreviewLines = message.payload.maxAllowablePreviewLines;
         renderer.renderPreviewLoading(message.payload);
         return;
       }
 
       if (message.type === 'data') {
         data = withLineCountState(message.payload);
+        maxAllowablePreviewLines = data.maxAllowablePreviewLines;
         renderer.renderData(data);
         return;
       }
@@ -114,7 +118,10 @@ export function createWebviewApp(
       }
 
       if (message.type === 'previewLinesError') {
-        showPreviewLinesError(message.message || PREVIEW_LINES_ERROR_MESSAGE);
+        showPreviewLinesError(
+          message.message ||
+            getPreviewLinesErrorMessage(maxAllowablePreviewLines)
+        );
         return;
       }
 
@@ -130,7 +137,8 @@ export function createWebviewApp(
   function submitPreviewLines(): void {
     const submission = getPreviewLinesSubmission(
       elements.previewLinesInput.value,
-      lastConfirmedPreviewLines
+      lastConfirmedPreviewLines,
+      maxAllowablePreviewLines
     );
     if (submission.kind === 'invalid') {
       showPreviewLinesError(submission.message);
