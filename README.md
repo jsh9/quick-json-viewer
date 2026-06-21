@@ -1,7 +1,7 @@
 # Quick JSON Viewer
 
 Quick JSON Viewer is a VS Code extension that opens big `.json` files in a
-readonly, searchable custom editor designed to stay responsive with large JSON
+read-only, searchable custom editor designed to stay responsive with large JSON
 documents.
 
 You can also use it in IDEs that are based on VS Code, such as Cursor.
@@ -12,11 +12,10 @@ lines. Files at or below the threshold open with VS Code's default JSON editor.
 
 ## 1. Features
 
-- Open large `.json` files in a readonly custom editor with a truncated raw-text preview.
+- Open large `.json` files in a read-only custom editor with a truncated raw-text preview.
+- Automatically pretty-print minified JSON (1-line JSON).
 - See useful file context, including file size, exact total line count, and last modified time.
 - Search rendered preview text with VS Code's webview Find widget.
-- Keep large files responsive by streaming only the first configured number of lines without JSON parsing.
-- Automatically format likely minified JSON previews while streaming.
 - Use `Show raw JSON` to disengage the extension and reopen the file with VS Code's default editor.
 
 ## 2. Screenshots
