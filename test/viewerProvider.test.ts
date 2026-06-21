@@ -1,4 +1,5 @@
 import * as assert from 'node:assert/strict';
+import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { test } from 'node:test';
 import {
@@ -14,6 +15,21 @@ import {
   waitForMessage,
   writeFixture
 } from './support/extensionHarness';
+
+test('custom document dispose is a no-op', async () => {
+  const harness = loadExtension();
+  try {
+    const provider = activateAndGetProvider(harness);
+    const document = await provider.openCustomDocument(
+      FakeUri.file(await writeFixture('document-dispose.json', '{"a":1}'))
+    );
+
+    (document as unknown as { dispose(): void }).dispose();
+    assert.ok(document.uri);
+  } finally {
+    harness.restore();
+  }
+});
 
 test('custom editor posts readonly preview data for files above threshold', async () => {
   const harness = loadExtension();
@@ -64,6 +80,64 @@ test('custom editor posts readonly preview data for files above threshold', asyn
     );
   } finally {
     panel.dispose();
+    harness.restore();
+  }
+});
+
+test('postJsonData ignores stale generations before previewing or posting errors', async () => {
+  const harness = loadExtension();
+  try {
+    const { postJsonData } = require('../src/viewerData') as {
+      postJsonData: (...args: unknown[]) => Promise<void>;
+    };
+    const settings = {
+      largeFileThresholdMb: 0,
+      previewLines: 100,
+      maxAllowablePreviewLines: 10000
+    };
+    const exactLineCounts = {
+      noteFileSnapshot: () => undefined,
+      getCachedLineCount: () => undefined,
+      setCachedLineCount: () => undefined,
+      ensureExactLineCount: () => undefined
+    };
+    const filePath = await writeFixture('stale-generation.json', '{"a":1}');
+    const panel = new FakeWebviewPanel();
+    let openedDefault = false;
+
+    await postJsonData(
+      FakeUri.file(filePath),
+      panel.webview,
+      1,
+      () => 2,
+      new AbortController().signal,
+      settings,
+      async () => {
+        openedDefault = true;
+      },
+      exactLineCounts
+    );
+
+    assert.equal(openedDefault, false);
+    assert.deepEqual(panel.webview.messages.map(getMessageType), ['loading']);
+
+    panel.webview.messages.length = 0;
+    await postJsonData(
+      FakeUri.file(path.join(tempDir, 'missing-stale-generation.json')),
+      panel.webview,
+      1,
+      () => 2,
+      new AbortController().signal,
+      settings,
+      async () => {
+        openedDefault = true;
+      },
+      exactLineCounts
+    );
+
+    assert.equal(openedDefault, false);
+    assert.deepEqual(panel.webview.messages.map(getMessageType), ['loading']);
+  } finally {
     harness.restore();
   }
 });
@@ -264,6 +338,7 @@ test('custom editor hands files at or below threshold to the default editor', as
   const panel = new FakeWebviewPanel();
   try {
     harness.fake.largeFileThresholdMb = 10;
+    panel.viewColumn = undefined;
     const provider = activateAndGetProvider(harness);
     const uri = FakeUri.file(filePath);
     const document = await provider.openCustomDocument(uri);
@@ -274,9 +349,44 @@ test('custom editor hands files at or below threshold to the default editor', as
 
     assert.deepEqual(harness.fake.executedCommands.at(-1), {
       command: 'vscode.openWith',
-      args: [uri, 'default', FakeVscode.ViewColumn.One]
+      args: [uri, 'default', FakeVscode.ViewColumn.Active]
     });
   } finally {
+    harness.restore();
+  }
+});
+
+test('custom editor skips default editor handoff after disposal', async () => {
+  let releaseStat: (() => void) | undefined;
+  const harness = loadExtension(
+    {},
+    {},
+    {
+      stat: async (filePath: string) => {
+        await new Promise<void>((resolve) => {
+          releaseStat = resolve;
+        });
+        return fs.stat(filePath);
+      }
+    }
+  );
+  const filePath = await writeFixture('disposed-small.json', '{"a":1}');
+  const panel = new FakeWebviewPanel();
+  try {
+    harness.fake.largeFileThresholdMb = 10;
+    const provider = activateAndGetProvider(harness);
+    const document = await provider.openCustomDocument(FakeUri.file(filePath));
+
+    await provider.resolveCustomEditor(document, panel, {});
+    panel.webview.receive({ type: 'ready' });
+    await waitForMessage(panel, (message) => message.type === 'loading');
+    panel.dispose();
+    releaseStat?.();
+    await sleep(50);
+
+    assert.equal(harness.fake.executedCommands.length, 0);
+  } finally {
+    releaseStat?.();
     harness.restore();
   }
 });
@@ -304,6 +414,30 @@ test('show raw JSON disengages the extension and opens the default editor', asyn
   }
 });
 
+test('show raw JSON reports default editor open failures', async () => {
+  const harness = loadExtension();
+  const filePath = await writeFixture('show-raw-fails.json', '{"a":1}');
+  const panel = new FakeWebviewPanel();
+  try {
+    harness.fake.executeCommandError = new Error('open failed');
+    const provider = activateAndGetProvider(harness);
+    const document = await provider.openCustomDocument(FakeUri.file(filePath));
+
+    await provider.resolveCustomEditor(document, panel, {});
+    panel.webview.receive({ type: 'showRawJson' });
+    const error = await waitForMessage<{
+      readonly type?: unknown;
+      readonly message: string;
+    }>(panel, (message) => message.type === 'error');
+
+    assert.equal(error.message, 'open failed');
+    assert.equal(panel.disposed, false);
+  } finally {
+    panel.dispose();
+    harness.restore();
+  }
+});
+
 test('custom editor validates preview-line setting messages and writes valid updates', async () => {
   const harness = loadExtension();
   const filePath = await writeFixture('settings.json', '{"a":1}');
@@ -319,12 +453,20 @@ test('custom editor validates preview-line setting messages and writes valid upd
       (message) => message.type === 'previewLinesError'
     );
 
-    panel.webview.receive({ type: 'updatePreviewLines', value: 10001 });
+    panel.webview.receive({ type: 'updatePreviewLines', value: '8' });
     await waitFor(
       () =>
         panel.webview.messages.filter(
           (message) => getMessageType(message) === 'previewLinesError'
         ).length === 2
+    );
+
+    panel.webview.receive({ type: 'updatePreviewLines', value: 10001 });
+    await waitFor(
+      () =>
+        panel.webview.messages.filter(
+          (message) => getMessageType(message) === 'previewLinesError'
+        ).length === 3
     );
 
     harness.fake.maxAllowablePreviewLines = 20000;
@@ -739,5 +881,48 @@ test('custom editor drops stale preview results and ignores aborted reads', asyn
   } finally {
     abortPanel.dispose();
     abortHarness.restore();
+  }
+});
+
+test('custom editor drops stale preview errors', async () => {
+  const previewRejectors: Array<(error: Error) => void> = [];
+  const harness = loadExtension({
+    readJsonPreview: async () =>
+      new Promise((_resolve, reject) => {
+        previewRejectors.push(reject);
+      })
+  });
+  const panel = new FakeWebviewPanel();
+  try {
+    harness.fake.largeFileThresholdMb = 0;
+    const provider = activateAndGetProvider(harness);
+    const document = await provider.openCustomDocument(
+      FakeUri.file(await writeFixture('stale-preview-error.json', '{"a":1}'))
+    );
+    await provider.resolveCustomEditor(document, panel, {});
+    panel.webview.receive({ type: 'ready' });
+    await waitForMessage(
+      panel,
+      (message) => message.type === 'previewLoadStart'
+    );
+
+    harness.fake.fireConfigurationChange(['quickJsonViewer.previewLines']);
+    await waitFor(() => previewRejectors.length === 2);
+    previewRejectors[0]?.(new Error('stale preview failed'));
+    await sleep(50);
+
+    assert.equal(
+      panel.webview.messages.some(
+        (message) => getMessageType(message) === 'error'
+      ),
+      false
+    );
+
+    const abort = new Error('aborted');
+    abort.name = 'AbortError';
+    previewRejectors[1]?.(abort);
+  } finally {
+    panel.dispose();
+    harness.restore();
   }
 });

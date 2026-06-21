@@ -96,8 +96,19 @@ test('JSON highlighter preserves invalid partial JSON and HTML-sensitive text', 
 });
 
 test('JSON highlighter leaves words and truncation marker as plain text', () => {
+  assert.deepEqual(simplify(highlightJsonLine('true false null')), [
+    ['literal', 'true'],
+    ['plain', ' '],
+    ['literal', 'false'],
+    ['plain', ' '],
+    ['literal', 'null']
+  ]);
   assert.deepEqual(simplify(highlightJsonLine('truthy falsehood nullish')), [
     ['plain', 'truthy falsehood nullish']
+  ]);
+  assert.deepEqual(simplify(highlightJsonLine('xtrue truex true')), [
+    ['plain', 'xtrue truex '],
+    ['literal', 'true']
   ]);
   assert.deepEqual(simplify(highlightJsonLine('...')), [['plain', '...']]);
 });
