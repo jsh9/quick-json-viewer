@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.0.3
+
+- Document where Quick JSON Viewer is available on Visual Studio Marketplace and Open VSX.
+- Keep VS Code smoke coverage focused on staged and unstaged Git JSON diffs.
+
 ## 0.0.2
 
 - Keep JSON diffs in VS Code's native diff editor while continuing to open large JSON files in Quick JSON Viewer.

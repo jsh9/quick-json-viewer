@@ -10,6 +10,11 @@ When a JSON file is larger than the configured threshold, Quick JSON Viewer
 shows a syntax-highlighted raw-text preview of the first configured number of
 lines. Files at or below the threshold open with VS Code's default JSON editor.
 
+It is hosted both on VS Code marketplace and Open VSX:
+
+- Visual Studio Marketplace: https://marketplace.visualstudio.com/items?itemName=jsh9.quick-json-viewer
+- Open VSX: https://open-vsx.org/extension/jsh9/quick-json-viewer
+
 ## 1. Features
 
 - Open large `.json` files in a read-only custom editor with a truncated raw-text preview.
