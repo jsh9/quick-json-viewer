@@ -2,7 +2,15 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { SAMPLE_JSON_PATHS, VIEW_TYPE } from './constants';
 
+const DIFF_EDITOR_WARNING =
+  'Quick JSON Viewer is not available in diff editors.';
+
 export async function openJsonViewer(resource?: vscode.Uri): Promise<void> {
+  if (!resource && isActiveTextDiffEditor()) {
+    void vscode.window.showWarningMessage(DIFF_EDITOR_WARNING);
+    return;
+  }
+
   const uri = resource ?? getActiveEditorUri();
 
   if (!uri) {
@@ -59,11 +67,12 @@ function getActiveEditorUri(): vscode.Uri | undefined {
     return input.uri;
   }
 
-  if (input instanceof vscode.TabInputTextDiff) {
-    return input.modified;
-  }
-
   return undefined;
+}
+
+function isActiveTextDiffEditor(): boolean {
+  const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
+  return input instanceof vscode.TabInputTextDiff;
 }
 
 function isJsonFile(uri: vscode.Uri): boolean {

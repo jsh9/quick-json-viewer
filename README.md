@@ -30,6 +30,9 @@ Open any `.json` file in VS Code. Files larger than
 `quickJsonViewer.largeFileThresholdMb` open with Quick JSON Viewer by default;
 smaller files are handed off to VS Code's default editor.
 
+Git staged and unstaged JSON diffs stay in VS Code's native diff editor
+regardless of file size.
+
 You can also run `Quick JSON Viewer: Open in Quick JSON Viewer` from the command
 palette, the editor title menu, or the Explorer context menu for a `.json` file.
 

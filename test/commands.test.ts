@@ -55,7 +55,7 @@ test('openCurrentFile validates input and opens JSON resources', async () => {
   }
 });
 
-test('openCurrentFile resolves active editor, custom tab, and diff tab URIs', async () => {
+test('openCurrentFile resolves active editor and custom tab URIs', async () => {
   const harness = loadExtension();
   try {
     harness.extension.activate(createContext());
@@ -65,7 +65,6 @@ test('openCurrentFile resolves active editor, custom tab, and diff tab URIs', as
     );
     const textUri = FakeUri.file(path.join(tempDir, 'active.json'));
     const customUri = FakeUri.file(path.join(tempDir, 'custom.json'));
-    const modifiedUri = FakeUri.file(path.join(tempDir, 'modified.json'));
 
     harness.fake.activeTextEditorUri = textUri;
     thisOwner.activeTextEditorUri = textUri;
@@ -83,14 +82,47 @@ test('openCurrentFile resolves active editor, custom tab, and diff tab URIs', as
     thisOwner.activeTabInput = harness.fake.activeTabInput;
     await openCurrentFile();
     assert.equal(harness.fake.executedCommands.at(-1)?.args[0], customUri);
+  } finally {
+    thisOwner.activeTextEditorUri = undefined;
+    thisOwner.activeTabInput = undefined;
+    harness.restore();
+  }
+});
 
+test('openCurrentFile blocks command palette use from diff tabs', async () => {
+  const harness = loadExtension();
+  try {
+    harness.extension.activate(createContext());
+    const openCurrentFile = getCommand(
+      harness.fake,
+      'quickJsonViewer.openCurrentFile'
+    );
+    const explicitUri = FakeUri.file(path.join(tempDir, 'direct.json'));
+    const modifiedUri = FakeUri.file(path.join(tempDir, 'modified.json'));
     harness.fake.activeTabInput = new FakeTabInputTextDiff(
       FakeUri.file(path.join(tempDir, 'original.json')),
       modifiedUri
     );
     thisOwner.activeTabInput = harness.fake.activeTabInput;
+    harness.fake.activeTextEditorUri = modifiedUri;
+    thisOwner.activeTextEditorUri = modifiedUri;
+
     await openCurrentFile();
-    assert.equal(harness.fake.executedCommands.at(-1)?.args[0], modifiedUri);
+    assert.equal(
+      harness.fake.warnings.at(-1),
+      'Quick JSON Viewer is not available in diff editors.'
+    );
+    assert.equal(harness.fake.executedCommands.length, 0);
+
+    await openCurrentFile(explicitUri);
+    assert.deepEqual(harness.fake.executedCommands.at(-1), {
+      command: 'vscode.openWith',
+      args: [
+        explicitUri,
+        'quickJsonViewer.viewer',
+        FakeVscode.ViewColumn.Active
+      ]
+    });
   } finally {
     thisOwner.activeTextEditorUri = undefined;
     thisOwner.activeTabInput = undefined;

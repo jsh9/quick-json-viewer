@@ -22,10 +22,12 @@ test('package contributes JSON viewer as the default editor association', async 
   const packageJson = JSON.parse(
     await fs.readFile(path.join(process.cwd(), 'package.json'), 'utf8')
   ) as {
+    readonly engines?: { readonly vscode?: unknown };
     readonly activationEvents?: unknown;
     readonly contributes?: {
       readonly configurationDefaults?: {
         readonly 'workbench.editorAssociations'?: Record<string, string>;
+        readonly 'workbench.diffEditorAssociations'?: Record<string, string>;
       };
       readonly languages?: Array<{
         readonly id?: unknown;
@@ -35,6 +37,14 @@ test('package contributes JSON viewer as the default editor association', async 
         readonly command?: unknown;
         readonly title?: unknown;
       }>;
+      readonly menus?: Record<
+        string,
+        Array<{
+          readonly command?: unknown;
+          readonly when?: unknown;
+          readonly group?: unknown;
+        }>
+      >;
       readonly customEditors?: Array<{
         readonly viewType?: unknown;
         readonly priority?: unknown;
@@ -59,11 +69,39 @@ test('package contributes JSON viewer as the default editor association', async 
     ]?.['*.json'],
     'quickJsonViewer.viewer'
   );
+  assert.equal(
+    packageJson.contributes?.configurationDefaults?.[
+      'workbench.diffEditorAssociations'
+    ]?.['*.json'],
+    'default'
+  );
+  assert.equal(packageJson.engines?.vscode, '^1.120.0');
 
   const openCommand = packageJson.contributes?.commands?.find(
     (command) => command.command === 'quickJsonViewer.openCurrentFile'
   );
   assert.equal(openCommand?.title, 'Open in Quick JSON Viewer');
+
+  const commandPaletteEntry = packageJson.contributes?.menus?.[
+    'commandPalette'
+  ]?.find((entry) => entry.command === 'quickJsonViewer.openCurrentFile');
+  assert.equal(commandPaletteEntry?.when, '!isInDiffEditor');
+
+  const editorTitleEntry = packageJson.contributes?.menus?.[
+    'editor/title'
+  ]?.find((entry) => entry.command === 'quickJsonViewer.openCurrentFile');
+  assert.equal(
+    editorTitleEntry?.when,
+    'resourceScheme == file && resourceExtname == .json && !isInDiffEditor'
+  );
+
+  const explorerContextEntry = packageJson.contributes?.menus?.[
+    'explorer/context'
+  ]?.find((entry) => entry.command === 'quickJsonViewer.openCurrentFile');
+  assert.equal(
+    explorerContextEntry?.when,
+    'resourceScheme == file && resourceExtname == .json'
+  );
 
   const customEditor = packageJson.contributes?.customEditors?.find(
     (editor) => editor.viewType === 'quickJsonViewer.viewer'

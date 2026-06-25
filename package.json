@@ -2,7 +2,7 @@
   "name": "quick-json-viewer",
   "displayName": "Quick JSON Viewer",
   "description": "Open big JSON files in a readonly, searchable raw-text preview without loading the full document into an editable text editor.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "jsh9",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -26,7 +26,7 @@
     "theme": "dark"
   },
   "engines": {
-    "vscode": "^1.90.0"
+    "vscode": "^1.120.0"
   },
   "categories": [
     "Other"
@@ -84,6 +84,9 @@
     "configurationDefaults": {
       "workbench.editorAssociations": {
         "*.json": "quickJsonViewer.viewer"
+      },
+      "workbench.diffEditorAssociations": {
+        "*.json": "default"
       }
     },
     "configuration": {
@@ -112,20 +115,21 @@
     "menus": {
       "commandPalette": [
         {
-          "command": "quickJsonViewer.openCurrentFile"
+          "command": "quickJsonViewer.openCurrentFile",
+          "when": "!isInDiffEditor"
         }
       ],
       "editor/title": [
         {
           "command": "quickJsonViewer.openCurrentFile",
-          "when": "resourceExtname == .json",
+          "when": "resourceScheme == file && resourceExtname == .json && !isInDiffEditor",
           "group": "navigation"
         }
       ],
       "explorer/context": [
         {
           "command": "quickJsonViewer.openCurrentFile",
-          "when": "resourceExtname == .json",
+          "when": "resourceScheme == file && resourceExtname == .json",
           "group": "navigation"
         }
       ]
@@ -149,7 +153,7 @@
   "devDependencies": {
     "@types/mocha": "^10.0.10",
     "@types/node": "20.14.8",
-    "@types/vscode": "1.90.0",
+    "@types/vscode": "1.120.0",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^3.0.0",
     "c8": "^11.0.0",
