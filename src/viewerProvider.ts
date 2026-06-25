@@ -2,6 +2,11 @@ import * as nodeFs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { FILE_RELOAD_DEBOUNCE_MS, SETTINGS_SECTION } from './constants';
+import {
+  allowJsonAutoOpen,
+  forgetJsonAutoOpen,
+  suppressJsonAutoOpen
+} from './commands';
 import { getHtml } from './webview/html';
 import {
   ExactLineCountCache,
@@ -146,12 +151,18 @@ export class JsonViewerProvider implements vscode.CustomReadonlyEditorProvider<J
         return;
       }
 
-      await vscode.commands.executeCommand(
-        'vscode.openWith',
-        document.uri,
-        'default',
-        webviewPanel.viewColumn ?? vscode.ViewColumn.Active
-      );
+      suppressJsonAutoOpen(document.uri);
+      try {
+        await vscode.commands.executeCommand(
+          'vscode.openWith',
+          document.uri,
+          'default',
+          webviewPanel.viewColumn ?? vscode.ViewColumn.Active
+        );
+      } catch (error) {
+        allowJsonAutoOpen(document.uri);
+        throw error;
+      }
       webviewPanel.dispose();
     };
 
@@ -317,6 +328,7 @@ export class JsonViewerProvider implements vscode.CustomReadonlyEditorProvider<J
 
     webviewPanel.onDidDispose(() => {
       disposed = true;
+      forgetJsonAutoOpen(document.uri);
       cancelCurrentWork();
       currentFileSnapshot = undefined;
       abortExactLineCount();
