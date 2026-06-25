@@ -10,11 +10,9 @@ import {
   createContext,
   getCommand,
   loadExtension,
-  sleep,
   tempDir,
   thisOwner,
-  waitFor,
-  writeFixture
+  waitFor
 } from './support/extensionHarness';
 
 test('openCurrentFile validates input and opens JSON resources', async () => {
@@ -57,7 +55,7 @@ test('openCurrentFile validates input and opens JSON resources', async () => {
   }
 });
 
-test('openCurrentFile resolves active editor and custom tab URIs', async () => {
+test('openCurrentFile resolves active editor, custom tab, and diff tab URIs', async () => {
   const harness = loadExtension();
   try {
     harness.extension.activate(createContext());
@@ -67,6 +65,7 @@ test('openCurrentFile resolves active editor and custom tab URIs', async () => {
     );
     const textUri = FakeUri.file(path.join(tempDir, 'active.json'));
     const customUri = FakeUri.file(path.join(tempDir, 'custom.json'));
+    const modifiedUri = FakeUri.file(path.join(tempDir, 'modified.json'));
 
     harness.fake.activeTextEditorUri = textUri;
     thisOwner.activeTextEditorUri = textUri;
@@ -84,96 +83,14 @@ test('openCurrentFile resolves active editor and custom tab URIs', async () => {
     thisOwner.activeTabInput = harness.fake.activeTabInput;
     await openCurrentFile();
     assert.equal(harness.fake.executedCommands.at(-1)?.args[0], customUri);
-  } finally {
-    thisOwner.activeTextEditorUri = undefined;
-    thisOwner.activeTabInput = undefined;
-    harness.restore();
-  }
-});
 
-test('openCurrentFile refuses active diff tabs', async () => {
-  const harness = loadExtension();
-  try {
-    harness.extension.activate(createContext());
-    const openCurrentFile = getCommand(
-      harness.fake,
-      'quickJsonViewer.openCurrentFile'
-    );
-    const modifiedUri = FakeUri.file(path.join(tempDir, 'modified.json'));
-
-    harness.fake.activeTextEditorUri = modifiedUri;
-    thisOwner.activeTextEditorUri = modifiedUri;
     harness.fake.activeTabInput = new FakeTabInputTextDiff(
       FakeUri.file(path.join(tempDir, 'original.json')),
       modifiedUri
     );
     thisOwner.activeTabInput = harness.fake.activeTabInput;
-
     await openCurrentFile();
-
-    assert.equal(harness.fake.executedCommands.length, 0);
-    assert.equal(
-      harness.fake.warnings.at(-1),
-      'Quick JSON Viewer cannot open JSON diff editors. Open one side of the diff as a normal file first.'
-    );
-  } finally {
-    thisOwner.activeTextEditorUri = undefined;
-    thisOwner.activeTabInput = undefined;
-    harness.restore();
-  }
-});
-
-test('active normal JSON editors auto-open above threshold while diff tabs stay text diffs', async () => {
-  const harness = loadExtension();
-  try {
-    harness.fake.largeFileThresholdMb = 0;
-    harness.extension.activate(createContext());
-    const jsonUri = FakeUri.file(
-      await writeFixture('auto-open.json', '{"a":1}')
-    );
-
-    harness.fake.fireActiveTextEditor(jsonUri);
-    await waitFor(() => harness.fake.executedCommands.length === 1);
-    assert.deepEqual(harness.fake.executedCommands.at(-1), {
-      command: 'vscode.openWith',
-      args: [jsonUri, 'quickJsonViewer.viewer', FakeVscode.ViewColumn.One]
-    });
-
-    harness.fake.executedCommands.length = 0;
-    harness.fake.activeTabInput = new FakeTabInputTextDiff(
-      FakeUri.file(path.join(tempDir, 'original.json')),
-      jsonUri
-    );
-    thisOwner.activeTabInput = harness.fake.activeTabInput;
-
-    harness.fake.fireActiveTextEditor(jsonUri);
-    await sleep(20);
-    assert.equal(harness.fake.executedCommands.length, 0);
-  } finally {
-    thisOwner.activeTextEditorUri = undefined;
-    thisOwner.activeTabInput = undefined;
-    harness.restore();
-  }
-});
-
-test('opened normal JSON documents auto-open after activation even without active-editor events', async () => {
-  const harness = loadExtension();
-  try {
-    harness.fake.largeFileThresholdMb = 0;
-    harness.extension.activate(createContext());
-    const jsonUri = FakeUri.file(
-      await writeFixture('auto-open-after-activation.json', '{"a":1}')
-    );
-
-    harness.fake.activeTextEditorUri = jsonUri;
-    thisOwner.activeTextEditorUri = jsonUri;
-    harness.fake.fireOpen(jsonUri);
-
-    await waitFor(() => harness.fake.executedCommands.length === 1, 1_000);
-    assert.deepEqual(harness.fake.executedCommands.at(-1), {
-      command: 'vscode.openWith',
-      args: [jsonUri, 'quickJsonViewer.viewer', FakeVscode.ViewColumn.One]
-    });
+    assert.equal(harness.fake.executedCommands.at(-1)?.args[0], modifiedUri);
   } finally {
     thisOwner.activeTextEditorUri = undefined;
     thisOwner.activeTabInput = undefined;

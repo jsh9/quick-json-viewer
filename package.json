@@ -34,7 +34,6 @@
   "main": "./out/src/extension.js",
   "activationEvents": [
     "onCustomEditor:quickJsonViewer.viewer",
-    "onLanguage:json",
     "onCommand:quickJsonViewer.openCurrentFile",
     "onCommand:quickJsonViewer.openSampleFiles"
   ],
@@ -79,9 +78,14 @@
             "filenamePattern": "**/*.json"
           }
         ],
-        "priority": "option"
+        "priority": "default"
       }
     ],
+    "configurationDefaults": {
+      "workbench.editorAssociations": {
+        "*.json": "quickJsonViewer.viewer"
+      }
+    },
     "configuration": {
       "title": "Quick JSON Viewer",
       "properties": {
@@ -114,7 +118,7 @@
       "editor/title": [
         {
           "command": "quickJsonViewer.openCurrentFile",
-          "when": "resourceExtname == .json && !isInDiffEditor",
+          "when": "resourceExtname == .json",
           "group": "navigation"
         }
       ],
@@ -151,7 +155,7 @@
     "c8": "^11.0.0",
     "esbuild": "^0.28.1",
     "husky": "^9.1.7",
-    "jsdom": "^26.1.0",
+    "jsdom": "^29.1.1",
     "mocha": "^11.7.6",
     "prettier": "^3.8.4",
     "typescript": "^5.8.3"

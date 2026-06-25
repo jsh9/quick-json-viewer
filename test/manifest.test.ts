@@ -18,7 +18,7 @@ test('package main points to the compiled extension entrypoint', async () => {
   await fs.access(path.join(process.cwd(), main));
 });
 
-test('package contributes JSON viewer without forcing JSON diff associations', async () => {
+test('package contributes JSON viewer as the default editor association', async () => {
   const packageJson = JSON.parse(
     await fs.readFile(path.join(process.cwd(), 'package.json'), 'utf8')
   ) as {
@@ -35,12 +35,6 @@ test('package contributes JSON viewer without forcing JSON diff associations', a
         readonly command?: unknown;
         readonly title?: unknown;
       }>;
-      readonly menus?: {
-        readonly 'editor/title'?: Array<{
-          readonly command?: unknown;
-          readonly when?: unknown;
-        }>;
-      };
       readonly customEditors?: Array<{
         readonly viewType?: unknown;
         readonly priority?: unknown;
@@ -63,7 +57,7 @@ test('package contributes JSON viewer without forcing JSON diff associations', a
     packageJson.contributes?.configurationDefaults?.[
       'workbench.editorAssociations'
     ]?.['*.json'],
-    undefined
+    'quickJsonViewer.viewer'
   );
 
   const openCommand = packageJson.contributes?.commands?.find(
@@ -75,18 +69,11 @@ test('package contributes JSON viewer without forcing JSON diff associations', a
     (editor) => editor.viewType === 'quickJsonViewer.viewer'
   );
 
-  assert.equal(customEditor?.priority, 'option');
+  assert.equal(customEditor?.priority, 'default');
   assert.ok(
     customEditor?.selector?.some(
       (selector) => selector.filenamePattern === '*.json'
     )
-  );
-  const editorTitleCommand = packageJson.contributes?.menus?.[
-    'editor/title'
-  ]?.find((menuItem) => menuItem.command === 'quickJsonViewer.openCurrentFile');
-  assert.equal(
-    editorTitleCommand?.when,
-    'resourceExtname == .json && !isInDiffEditor'
   );
   assert.ok(Array.isArray(packageJson.activationEvents));
   assert.ok(
@@ -94,7 +81,6 @@ test('package contributes JSON viewer without forcing JSON diff associations', a
       'onCommand:quickJsonViewer.openSampleFiles'
     )
   );
-  assert.ok(packageJson.activationEvents.includes('onLanguage:json'));
   assert.ok(
     packageJson.contributes?.languages?.some(
       (language) =>

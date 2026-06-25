@@ -1,9 +1,8 @@
 import * as assert from 'node:assert/strict';
-import * as nodeFs from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { after } from 'node:test';
+import { after, before } from 'node:test';
 
 export interface Disposable {
   dispose(): void;
@@ -160,25 +159,6 @@ export class FakeVscode {
     readonly listener: (document: { readonly uri: FakeUri }) => void;
     disposed: boolean;
   }> = [];
-  public readonly openListeners: Array<{
-    readonly listener: (document: { readonly uri: FakeUri }) => void;
-    disposed: boolean;
-  }> = [];
-  public readonly closeListeners: Array<{
-    readonly listener: (document: { readonly uri: FakeUri }) => void;
-    disposed: boolean;
-  }> = [];
-  public readonly activeTextEditorListeners: Array<{
-    readonly listener: (
-      editor:
-        | {
-            readonly document: { readonly uri: FakeUri };
-            readonly viewColumn: number;
-          }
-        | undefined
-    ) => void;
-    disposed: boolean;
-  }> = [];
   public activeTextEditorUri: FakeUri | undefined;
   public activeTabInput: unknown;
   public largeFileThresholdMb = 10;
@@ -275,37 +255,12 @@ export class FakeVscode {
             registration.disposed = true;
           }
         };
-      },
-      onDidOpenTextDocument: (
-        listener: (document: { readonly uri: FakeUri }) => void
-      ): Disposable => {
-        const registration = { listener, disposed: false };
-        this.openListeners.push(registration);
-        return {
-          dispose: () => {
-            registration.disposed = true;
-          }
-        };
-      },
-      onDidCloseTextDocument: (
-        listener: (document: { readonly uri: FakeUri }) => void
-      ): Disposable => {
-        const registration = { listener, disposed: false };
-        this.closeListeners.push(registration);
-        return {
-          dispose: () => {
-            registration.disposed = true;
-          }
-        };
       }
     },
     window: {
       get activeTextEditor() {
         return thisOwner.activeTextEditorUri
-          ? {
-              document: { uri: thisOwner.activeTextEditorUri },
-              viewColumn: FakeVscode.ViewColumn.One
-            }
+          ? { document: { uri: thisOwner.activeTextEditorUri } }
           : undefined;
       },
       tabGroups: {
@@ -322,24 +277,6 @@ export class FakeVscode {
       },
       showErrorMessage: async (message: string): Promise<void> => {
         this.errors.push(message);
-      },
-      onDidChangeActiveTextEditor: (
-        listener: (
-          editor:
-            | {
-                readonly document: { readonly uri: FakeUri };
-                readonly viewColumn: number;
-              }
-            | undefined
-        ) => void
-      ): Disposable => {
-        const registration = { listener, disposed: false };
-        this.activeTextEditorListeners.push(registration);
-        return {
-          dispose: () => {
-            registration.disposed = true;
-          }
-        };
       },
       registerCustomEditorProvider: (
         viewType: string,
@@ -377,34 +314,6 @@ export class FakeVscode {
       }
     }
   }
-
-  public fireOpen(uri: FakeUri): void {
-    for (const registration of this.openListeners) {
-      if (!registration.disposed) {
-        registration.listener({ uri });
-      }
-    }
-  }
-
-  public fireClose(uri: FakeUri): void {
-    for (const registration of this.closeListeners) {
-      if (!registration.disposed) {
-        registration.listener({ uri });
-      }
-    }
-  }
-
-  public fireActiveTextEditor(uri: FakeUri | undefined): void {
-    thisOwner.activeTextEditorUri = uri;
-    const editor = uri
-      ? { document: { uri }, viewColumn: FakeVscode.ViewColumn.One }
-      : undefined;
-    for (const registration of this.activeTextEditorListeners) {
-      if (!registration.disposed) {
-        registration.listener(editor);
-      }
-    }
-  }
 }
 
 export const thisOwner = {
@@ -412,9 +321,11 @@ export const thisOwner = {
   activeTabInput: undefined as unknown
 };
 
-export const tempDir = nodeFs.mkdtempSync(
-  path.join(os.tmpdir(), 'quick-json-viewer-ext-')
-);
+export let tempDir = '';
+
+before(async () => {
+  tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'quick-json-viewer-ext-'));
+});
 
 after(async () => {
   if (tempDir) {

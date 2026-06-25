@@ -409,18 +409,6 @@ test('show raw JSON disengages the extension and opens the default editor', asyn
       command: 'vscode.openWith',
       args: [uri, 'default', FakeVscode.ViewColumn.One]
     });
-
-    harness.fake.fireActiveTextEditor(uri);
-    await sleep(20);
-    assert.equal(harness.fake.executedCommands.length, 1);
-
-    harness.fake.fireClose(uri);
-    harness.fake.fireActiveTextEditor(uri);
-    await waitFor(() => harness.fake.executedCommands.length === 2);
-    assert.deepEqual(harness.fake.executedCommands.at(-1), {
-      command: 'vscode.openWith',
-      args: [uri, 'quickJsonViewer.viewer', FakeVscode.ViewColumn.One]
-    });
   } finally {
     harness.restore();
   }

@@ -6,10 +6,9 @@ documents.
 
 You can also use it in IDEs that are based on VS Code, such as Cursor.
 
-When you open a JSON file in Quick JSON Viewer and it is larger than the
-configured threshold, the extension shows a syntax-highlighted raw-text preview
-of the first configured number of lines. Files at or below the threshold open
-with VS Code's default JSON editor.
+When a JSON file is larger than the configured threshold, Quick JSON Viewer
+shows a syntax-highlighted raw-text preview of the first configured number of
+lines. Files at or below the threshold open with VS Code's default JSON editor.
 
 ## 1. Features
 
@@ -27,10 +26,9 @@ Read-only truncated JSON preview with syntax highlighting and file metadata:
 
 ## 3. Usage
 
-Normal JSON file opens auto-route through Quick JSON Viewer when the file is
-larger than `quickJsonViewer.largeFileThresholdMb`. Smaller files are handed off
-to VS Code's default JSON editor. Source Control diffs stay in VS Code's normal
-side-by-side text diff editor.
+Open any `.json` file in VS Code. Files larger than
+`quickJsonViewer.largeFileThresholdMb` open with Quick JSON Viewer by default;
+smaller files are handed off to VS Code's default editor.
 
 You can also run `Quick JSON Viewer: Open in Quick JSON Viewer` from the command
 palette, the editor title menu, or the Explorer context menu for a `.json` file.
@@ -77,10 +75,6 @@ file.
 
 The total line counter scans the file in the background and reports counting
 progress in the info bar until the exact count is available.
-
-Quick JSON Viewer does not force a global `*.json` editor association. The
-extension auto-routes normal JSON editors over the size threshold, while JSON
-diffs continue to use VS Code's normal side-by-side text diff.
 
 ## 6. Show Raw JSON
 
