@@ -3,6 +3,7 @@
 ## 0.0.3
 
 - Document where Quick JSON Viewer is available on Visual Studio Marketplace and Open VSX.
+- Keep VS Code smoke coverage focused on staged and unstaged Git JSON diffs.
 
 ## 0.0.2
 

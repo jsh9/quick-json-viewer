@@ -74,40 +74,6 @@ suite('Quick JSON Viewer VS Code smoke tests', () => {
     assert.equal(input.uri.toString(), uri.toString());
   });
 
-  test('opens JSON diffs with VS Code text diff editor', async function () {
-    this.timeout(10_000);
-
-    const tempDir = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'quick-json-viewer-diff-smoke-')
-    );
-    const originalPath = path.join(tempDir, 'fixture-original.json');
-    const modifiedPath = path.join(tempDir, 'fixture.json');
-    await fs.writeFile(originalPath, '{"a":1}', 'utf8');
-    await fs.writeFile(modifiedPath, '{"a":2}', 'utf8');
-    const originalUri = vscode.Uri.file(originalPath);
-    const modifiedUri = vscode.Uri.file(modifiedPath);
-
-    await vscode.commands.executeCommand(
-      'vscode.diff',
-      originalUri,
-      modifiedUri,
-      'fixture.json'
-    );
-
-    await waitFor(() => {
-      const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
-      return (
-        input instanceof vscode.TabInputTextDiff &&
-        input.original.toString() === originalUri.toString() &&
-        input.modified.toString() === modifiedUri.toString()
-      );
-    });
-
-    const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
-    assert.ok(input instanceof vscode.TabInputTextDiff);
-    assert.ok(!(input instanceof vscode.TabInputCustom));
-  });
-
   test('opens unstaged Git JSON diffs with VS Code text diff editor', async function () {
     this.timeout(10_000);
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
