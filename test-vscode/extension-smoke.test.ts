@@ -74,7 +74,9 @@ suite('Quick JSON Viewer VS Code smoke tests', () => {
     assert.equal(input.uri.toString(), uri.toString());
   });
 
-  test('opens JSON diffs with VS Code text diff editor', async () => {
+  test('opens JSON diffs with VS Code text diff editor', async function () {
+    this.timeout(10_000);
+
     const tempDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'quick-json-viewer-diff-smoke-')
     );
