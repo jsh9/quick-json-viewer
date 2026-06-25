@@ -2,7 +2,7 @@
   "name": "quick-json-viewer",
   "displayName": "Quick JSON Viewer",
   "description": "Open big JSON files in a readonly, searchable raw-text preview without loading the full document into an editable text editor.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "jsh9",
   "license": "MIT",
   "icon": "images/icon.png",
