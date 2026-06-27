@@ -7,6 +7,9 @@ import { promisify } from 'node:util';
 import * as vscode from 'vscode';
 
 const execFileAsync = promisify(execFile);
+// Git smoke tests create real repositories; keep their roots so teardown can
+// remove them after VS Code closes diff editors that may hold file handles.
+const tempDirs: string[] = [];
 
 interface GitExtension {
   getAPI(version: 1): GitApi;
@@ -33,6 +36,9 @@ interface GitChange {
 suite('Quick JSON Viewer VS Code smoke tests', () => {
   suiteTeardown(async () => {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+    await Promise.all(
+      tempDirs.map((dir) => fs.rm(dir, { recursive: true, force: true }))
+    );
   });
 
   test('extension activates and contributes expected commands', async () => {
@@ -93,6 +99,38 @@ suite('Quick JSON Viewer VS Code smoke tests', () => {
     assertGitTextDiffFor(fileUri);
   });
 
+  test('opens an explicit JSON viewer command while a matching Git diff is active', async function () {
+    this.timeout(10_000);
+    await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+    await vscode.workspace
+      .getConfiguration('quickJsonViewer')
+      .update('largeFileThresholdMb', 0, vscode.ConfigurationTarget.Global);
+
+    const { repoDir, fileUri } = await createGitJsonFixture();
+
+    const repository = await openGitRepository(repoDir);
+    await fs.writeFile(fileUri.fsPath, '{"a":2}\n', 'utf8');
+
+    await waitFor(async () => {
+      await repository.status();
+      return hasChange(repository.state.workingTreeChanges, fileUri);
+    });
+
+    await vscode.commands.executeCommand('git.openChange', fileUri);
+    await waitFor(() => isGitTextDiffFor(fileUri));
+
+    // Verifies real VS Code routing keeps an explicit viewer command from a
+    // matching Git diff. Unit fakes cannot prove this because the bug depends
+    // on custom-editor resolution while a native diff tab is active.
+    await vscode.commands.executeCommand(
+      'quickJsonViewer.openCurrentFile',
+      fileUri
+    );
+
+    await waitFor(() => isCustomViewerFor(fileUri));
+    assertCustomViewerFor(fileUri);
+  });
+
   test('opens staged Git JSON diffs with VS Code text diff editor', async function () {
     this.timeout(10_000);
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
@@ -128,6 +166,7 @@ async function createGitJsonFixture(): Promise<{
   const repoDir = await fs.mkdtemp(
     path.join(os.tmpdir(), 'quick-json-viewer-git-diff-smoke-')
   );
+  tempDirs.push(repoDir);
   const filePath = path.join(repoDir, 'fixture.json');
 
   await runGit(repoDir, ['init']);
@@ -184,6 +223,20 @@ function assertGitTextDiffFor(uri: vscode.Uri): void {
   assert.ok(!(input instanceof vscode.TabInputCustom));
   assert.ok(diffIncludesUri(input, uri));
   assert.ok(diffIncludesGitUri(input));
+}
+
+function isCustomViewerFor(uri: vscode.Uri): boolean {
+  const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
+  return (
+    input instanceof vscode.TabInputCustom &&
+    input.uri.toString() === uri.toString()
+  );
+}
+
+function assertCustomViewerFor(uri: vscode.Uri): void {
+  const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
+  assert.ok(input instanceof vscode.TabInputCustom);
+  assert.equal(input.uri.toString(), uri.toString());
 }
 
 function diffIncludesUri(
