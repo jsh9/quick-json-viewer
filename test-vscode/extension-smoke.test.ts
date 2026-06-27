@@ -102,6 +102,9 @@ suite('Quick JSON Viewer VS Code smoke tests', () => {
   test('opens an explicit JSON viewer command while a matching Git diff is active', async function () {
     this.timeout(10_000);
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+    await vscode.workspace
+      .getConfiguration('quickJsonViewer')
+      .update('largeFileThresholdMb', 0, vscode.ConfigurationTarget.Global);
 
     const { repoDir, fileUri } = await createGitJsonFixture();
 
