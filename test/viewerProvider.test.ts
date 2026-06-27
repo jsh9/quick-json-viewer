@@ -759,6 +759,11 @@ test('custom editor opens requested files even when a matching diff is active', 
     thisOwner.activeTabInput = harness.fake.activeTabInput;
 
     const modifiedDocument = await provider.openCustomDocument(modifiedUri);
+
+    // Verifies the provider honors the document it is asked to resolve instead
+    // of inferring intent from active diff state. This protects explicit viewer
+    // opens while VS Code's diff editor association handles automatic diff
+    // routing before the provider is invoked.
     await provider.resolveCustomEditor(modifiedDocument, modifiedPanel, {});
 
     assert.equal(modifiedPanel.disposed, false);

@@ -111,6 +111,9 @@ suite('Quick JSON Viewer VS Code smoke tests', () => {
       await vscode.commands.executeCommand('git.openChange', fileUri);
       await waitFor(() => isGitTextDiffFor(fileUri));
 
+      // Verifies real VS Code routing keeps an explicit viewer command from a
+      // matching Git diff. Unit fakes cannot prove this because the bug depends
+      // on custom-editor resolution while a native diff tab is active.
       await vscode.commands.executeCommand(
         'quickJsonViewer.openCurrentFile',
         fileUri
