@@ -742,9 +742,10 @@ test('custom editor reports unsupported schemes and missing files', async () => 
   }
 });
 
-test('custom editor reopens matching active text diffs with VS Code diff editor', async () => {
+test('custom editor opens requested files even when a matching diff is active', async () => {
   const harness = loadExtension();
-  const panel = new FakeWebviewPanel();
+  const modifiedPanel = new FakeWebviewPanel();
+  const originalPanel = new FakeWebviewPanel();
   try {
     const provider = activateAndGetProvider(harness);
     const originalUri = FakeUri.file(path.join(tempDir, 'original.json'));
@@ -756,23 +757,25 @@ test('custom editor reopens matching active text diffs with VS Code diff editor'
       modifiedUri
     );
     thisOwner.activeTabInput = harness.fake.activeTabInput;
-    const document = await provider.openCustomDocument(modifiedUri);
 
-    await provider.resolveCustomEditor(document, panel, {});
+    const modifiedDocument = await provider.openCustomDocument(modifiedUri);
+    await provider.resolveCustomEditor(modifiedDocument, modifiedPanel, {});
 
-    assert.equal(panel.disposed, true);
-    assert.deepEqual(panel.webview.options, undefined);
-    assert.equal(panel.webview.html, '');
-    assert.deepEqual(harness.fake.executedCommands.at(-1), {
-      command: 'vscode.diff',
-      args: [
-        originalUri,
-        modifiedUri,
-        undefined,
-        { viewColumn: FakeVscode.ViewColumn.One }
-      ]
-    });
+    assert.equal(modifiedPanel.disposed, false);
+    assert.deepEqual(modifiedPanel.webview.options, { enableScripts: true });
+    assert.match(modifiedPanel.webview.html, /id="content"/);
+    assert.equal(harness.fake.executedCommands.length, 0);
+
+    const originalDocument = await provider.openCustomDocument(originalUri);
+    await provider.resolveCustomEditor(originalDocument, originalPanel, {});
+
+    assert.equal(originalPanel.disposed, false);
+    assert.deepEqual(originalPanel.webview.options, { enableScripts: true });
+    assert.match(originalPanel.webview.html, /id="content"/);
+    assert.equal(harness.fake.executedCommands.length, 0);
   } finally {
+    modifiedPanel.dispose();
+    originalPanel.dispose();
     thisOwner.activeTabInput = undefined;
     harness.restore();
   }

@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.4
+
+- Allow explicit Quick JSON Viewer opens to show the requested JSON file even when a matching Git diff tab is active.
+
 ## 0.0.3
 
 - Document where Quick JSON Viewer is available on Visual Studio Marketplace and Open VSX.
